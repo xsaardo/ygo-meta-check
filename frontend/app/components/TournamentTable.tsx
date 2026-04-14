@@ -1,8 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import { DeckAppearance } from "../lib/api";
 
 interface Props {
   results: DeckAppearance[];
 }
+
+type SortKey = "date" | "placement" | "deck" | "zone" | "copies";
+type SortDir = "asc" | "desc";
 
 const ZONE_LABELS: Record<string, string> = {
   main: "Main",
@@ -48,14 +54,69 @@ function zoneBadge(zone: string) {
   );
 }
 
-export function TournamentTable({ results }: Props) {
-  const sorted = [...results].sort((a, b) => {
-    // Primary: placement rank, secondary: date desc
-    const rankA = PLACEMENT_ORDER[a.placement ?? ""] ?? 99;
-    const rankB = PLACEMENT_ORDER[b.placement ?? ""] ?? 99;
-    if (rankA !== rankB) return rankA - rankB;
-    return b.tournament_date.localeCompare(a.tournament_date);
+function sortRows(rows: DeckAppearance[], key: SortKey, dir: SortDir): DeckAppearance[] {
+  const factor = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    switch (key) {
+      case "date":
+        return factor * a.tournament_date.localeCompare(b.tournament_date);
+      case "placement": {
+        const rankA = PLACEMENT_ORDER[a.placement ?? ""] ?? 99;
+        const rankB = PLACEMENT_ORDER[b.placement ?? ""] ?? 99;
+        return factor * (rankA - rankB);
+      }
+      case "deck":
+        return factor * (a.deck_archetype ?? "").localeCompare(b.deck_archetype ?? "");
+      case "zone":
+        return factor * a.card_zone.localeCompare(b.card_zone);
+      case "copies":
+        return factor * (a.card_quantity - b.card_quantity);
+      default:
+        return 0;
+    }
   });
+}
+
+interface HeaderProps {
+  label: string;
+  sortKey: SortKey;
+  current: SortKey;
+  dir: SortDir;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}
+
+function SortableHeader({ label, sortKey, current, dir, onSort, className }: HeaderProps) {
+  const active = current === sortKey;
+  return (
+    <th
+      className={`px-4 py-3 font-medium cursor-pointer select-none whitespace-nowrap group ${className ?? ""}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span className={`text-xs transition ${active ? "text-[#C9A84C]" : "text-[#3A3A5A] group-hover:text-[#6B6B8A]"}`}>
+          {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </span>
+    </th>
+  );
+}
+
+export function TournamentTable({ results }: Props) {
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "copies" ? "desc" : "asc");
+    }
+  }
+
+  const sorted = sortRows(results, sortKey, sortDir);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[#2A2A4A]">
@@ -63,11 +124,11 @@ export function TournamentTable({ results }: Props) {
         <thead>
           <tr className="border-b border-[#2A2A4A] text-[#6B6B8A] text-left">
             <th className="px-4 py-3 font-medium">Tournament</th>
-            <th className="px-4 py-3 font-medium">Date</th>
-            <th className="px-4 py-3 font-medium">Placement</th>
-            <th className="px-4 py-3 font-medium">Deck</th>
-            <th className="px-4 py-3 font-medium">Zone</th>
-            <th className="px-4 py-3 font-medium">Copies</th>
+            <SortableHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortableHeader label="Placement" sortKey="placement" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortableHeader label="Deck" sortKey="deck" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortableHeader label="Zone" sortKey="zone" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortableHeader label="Copies" sortKey="copies" current={sortKey} dir={sortDir} onSort={handleSort} />
           </tr>
         </thead>
         <tbody>
