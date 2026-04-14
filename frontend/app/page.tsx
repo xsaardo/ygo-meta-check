@@ -8,27 +8,51 @@ import { TournamentTable } from "./components/TournamentTable";
 import { CardSuggestion, SearchResult, searchCard } from "./lib/api";
 
 const MONTH_OPTIONS = [1, 2, 3, 6] as const;
-const ZONE_OPTIONS = [
-  { value: "", label: "All Zones" },
-  { value: "main", label: "Main Deck" },
-  { value: "extra", label: "Extra Deck" },
+
+// Extra deck card types — all others belong to the main deck
+const EXTRA_DECK_TYPES = new Set([
+  "Fusion Monster",
+  "Synchro Monster",
+  "XYZ Monster",
+  "Link Monster",
+  "Pendulum Effect Fusion Monster",
+  "Synchro Pendulum Effect Monster",
+  "XYZ Pendulum Effect Monster",
+  "Pendulum Flip Effect Monster",
+]);
+
+function detectZone(type: string): "main" | "extra" {
+  return EXTRA_DECK_TYPES.has(type) ? "extra" : "main";
+}
+
+const ZONE_OVERRIDES = [
   { value: "side", label: "Side Deck" },
-];
+  { value: "", label: "All Zones" },
+] as const;
 
 export default function HomePage() {
   const [selectedCard, setSelectedCard] = useState<CardSuggestion | null>(null);
   const [months, setMonths] = useState(3);
-  const [zone, setZone] = useState("");
+  // null = auto-detect from card type; explicit string = user override
+  const [zoneOverride, setZoneOverride] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function effectiveZone(card: CardSuggestion | null, override: string | null): string | undefined {
+    if (override !== null) return override || undefined;
+    if (!card) return undefined;
+    return detectZone(card.type);
+  }
+
   async function handleCardSelect(card: CardSuggestion) {
     setSelectedCard(card);
+    setZoneOverride(null); // reset to auto on new card
     setError(null);
     setIsLoading(true);
     try {
-      const data = await searchCard(card.name, months, zone || undefined);
+      const zone = effectiveZone(card, null);
+      const data = await searchCard(card.name, months, zone);
       if (!data) throw new Error("Search failed");
       setResult(data);
     } catch {
@@ -39,12 +63,13 @@ export default function HomePage() {
     }
   }
 
-  async function refetch(newMonths = months, newZone = zone) {
+  async function refetch(newMonths = months, newOverride = zoneOverride) {
     if (!selectedCard) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await searchCard(selectedCard.name, newMonths, newZone || undefined);
+      const zone = effectiveZone(selectedCard, newOverride);
+      const data = await searchCard(selectedCard.name, newMonths, zone);
       if (!data) throw new Error("Search failed");
       setResult(data);
     } catch {
@@ -53,6 +78,10 @@ export default function HomePage() {
       setIsLoading(false);
     }
   }
+
+  const autoZoneLabel = selectedCard
+    ? detectZone(selectedCard.type) === "extra" ? "Extra Deck" : "Main Deck"
+    : "Auto";
 
   return (
     <main className="min-h-screen px-4 py-12 md:py-20">
@@ -80,7 +109,7 @@ export default function HomePage() {
               key={m}
               onClick={() => {
                 setMonths(m);
-                refetch(m, zone);
+                refetch(m, zoneOverride);
               }}
               className={`px-3 py-1 rounded text-sm font-medium transition ${
                 months === m
@@ -95,15 +124,31 @@ export default function HomePage() {
 
         {/* Zone filter */}
         <div className="flex items-center gap-1 bg-[#1A1A2E] border border-[#2A2A4A] rounded-lg px-2 py-2">
-          {ZONE_OPTIONS.map((z) => (
+          {/* Auto button — shows detected deck type */}
+          <button
+            onClick={() => {
+              setZoneOverride(null);
+              refetch(months, null);
+            }}
+            className={`px-3 py-1 rounded text-sm font-medium transition ${
+              zoneOverride === null
+                ? "bg-[#2A2A4A] text-white"
+                : "text-[#8888AA] hover:text-white"
+            }`}
+          >
+            {autoZoneLabel}
+          </button>
+
+          {/* Manual overrides */}
+          {ZONE_OVERRIDES.map((z) => (
             <button
               key={z.value}
               onClick={() => {
-                setZone(z.value);
+                setZoneOverride(z.value);
                 refetch(months, z.value);
               }}
               className={`px-3 py-1 rounded text-sm font-medium transition ${
-                zone === z.value
+                zoneOverride === z.value
                   ? "bg-[#2A2A4A] text-white"
                   : "text-[#8888AA] hover:text-white"
               }`}
