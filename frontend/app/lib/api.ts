@@ -27,6 +27,11 @@ export interface SearchResult {
   results: DeckAppearance[];
 }
 
+export interface CardPrices {
+  tcgplayer: string | null;
+  cardmarket: string | null;
+}
+
 export interface Stats {
   tournament_count: number;
   deck_count: number;
@@ -50,6 +55,12 @@ export async function searchCard(
   const params = new URLSearchParams({ card: cardName, months: String(months) });
   if (zone) params.set("zone", zone);
   const res = await fetch(`${API_URL}/api/search?${params}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getCardPrices(cardId: number): Promise<CardPrices | null> {
+  const res = await fetch(`${API_URL}/api/prices/${cardId}`);
   if (!res.ok) return null;
   return res.json();
 }

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.autocomplete import router as autocomplete_router
+from app.api.prices import router as prices_router
 from app.api.scrape import router as scrape_router
 from app.api.search import router as search_router
 from app.scraper.scheduler import init_scheduler
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(search_router, prefix="/api", tags=["search"])
 app.include_router(autocomplete_router, prefix="/api", tags=["autocomplete"])
+app.include_router(prices_router, prefix="/api", tags=["prices"])
 app.include_router(scrape_router, prefix="/api", tags=["admin"])
 
 

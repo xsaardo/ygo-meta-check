@@ -5,7 +5,7 @@ import { useState } from "react";
 import { CardSearch } from "./components/CardSearch";
 import { MetaBadge } from "./components/MetaBadge";
 import { TournamentTable } from "./components/TournamentTable";
-import { CardSuggestion, SearchResult, searchCard } from "./lib/api";
+import { CardPrices, CardSuggestion, SearchResult, getCardPrices, searchCard } from "./lib/api";
 
 const MONTH_OPTIONS = [1, 2, 3, 6] as const;
 
@@ -36,6 +36,7 @@ export default function HomePage() {
   // null = auto-detect from card type; explicit string = user override
   const [zoneOverride, setZoneOverride] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [prices, setPrices] = useState<CardPrices | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,11 +51,16 @@ export default function HomePage() {
     setZoneOverride(null); // reset to auto on new card
     setError(null);
     setIsLoading(true);
+    setPrices(null);
     try {
       const zone = effectiveZone(card, null);
-      const data = await searchCard(card.name, months, zone);
+      const [data, priceData] = await Promise.all([
+        searchCard(card.name, months, zone),
+        getCardPrices(card.id),
+      ]);
       if (!data) throw new Error("Search failed");
       setResult(data);
+      setPrices(priceData);
     } catch {
       setError("Failed to fetch results. Is the backend running?");
       setResult(null);
@@ -182,6 +188,22 @@ export default function HomePage() {
               <h2 className="text-xl font-bold text-white">{result.card_name}</h2>
               <div className="text-[#6B6B8A] text-sm">{selectedCard.type}</div>
               <MetaBadge relevant={result.meta_relevant} count={result.total_appearances} />
+              {prices && (prices.tcgplayer || prices.cardmarket) && (
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {prices.tcgplayer && (
+                    <span className="text-xs text-[#8888AA]">
+                      TCGPlayer{" "}
+                      <span className="text-white font-medium">${prices.tcgplayer}</span>
+                    </span>
+                  )}
+                  {prices.cardmarket && (
+                    <span className="text-xs text-[#8888AA]">
+                      Cardmarket{" "}
+                      <span className="text-white font-medium">€{prices.cardmarket}</span>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
