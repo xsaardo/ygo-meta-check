@@ -7,6 +7,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
+class Card(Base):
+    __tablename__ = "cards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # YGOPRODECK numeric ID
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    type: Mapped[str] = mapped_column(String(100))
+    archetype: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    image_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Tournament(Base):
     __tablename__ = "tournaments"
 

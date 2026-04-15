@@ -1,12 +1,15 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.autocomplete import router as autocomplete_router
 from app.api.prices import router as prices_router
 from app.api.scrape import router as scrape_router
 from app.api.search import router as search_router
+from app.config import settings
 from app.scraper.scheduler import init_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +43,11 @@ app.include_router(scrape_router, prefix="/api", tags=["admin"])
 
 @app.on_event("startup")
 async def startup():
+    # Ensure the card images directory exists and mount it as static files
+    images_dir = Path(settings.card_images_dir)
+    images_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static/cards", StaticFiles(directory=str(images_dir)), name="card_images")
+
     init_scheduler()
     logger.info("YGO Meta API started")
 
