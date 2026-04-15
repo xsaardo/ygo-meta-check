@@ -7,7 +7,7 @@ interface Props {
   results: DeckAppearance[];
 }
 
-type SortKey = "date" | "placement" | "deck" | "zone" | "copies";
+type SortKey = "date" | "placement" | "format" | "deck" | "zone" | "copies";
 type SortDir = "asc" | "desc";
 
 const ZONE_LABELS: Record<string, string> = {
@@ -23,6 +23,12 @@ const PLACEMENT_ORDER: Record<string, number> = {
   "Top 8": 4,
   "Top 16": 5,
   "Top 32": 6,
+};
+
+const FORMAT_COLORS: Record<string, string> = {
+  TCG: "bg-blue-500/15 text-blue-300",
+  OCG: "bg-red-500/15 text-red-300",
+  Genesys: "bg-green-500/15 text-green-300",
 };
 
 function placementBadge(placement: string | null) {
@@ -54,6 +60,16 @@ function zoneBadge(zone: string) {
   );
 }
 
+function formatBadge(format: string | null) {
+  if (!format) return <span className="text-[#4A4A6A]">—</span>;
+  const cls = FORMAT_COLORS[format] ?? "bg-[#2A2A4A] text-[#8888AA]";
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {format}
+    </span>
+  );
+}
+
 function sortRows(rows: DeckAppearance[], key: SortKey, dir: SortDir): DeckAppearance[] {
   const factor = dir === "asc" ? 1 : -1;
   return [...rows].sort((a, b) => {
@@ -65,6 +81,8 @@ function sortRows(rows: DeckAppearance[], key: SortKey, dir: SortDir): DeckAppea
         const rankB = PLACEMENT_ORDER[b.placement ?? ""] ?? 99;
         return factor * (rankA - rankB);
       }
+      case "format":
+        return factor * (a.format ?? "").localeCompare(b.format ?? "");
       case "deck":
         return factor * (a.deck_archetype ?? "").localeCompare(b.deck_archetype ?? "");
       case "zone":
@@ -83,14 +101,13 @@ interface HeaderProps {
   current: SortKey;
   dir: SortDir;
   onSort: (key: SortKey) => void;
-  className?: string;
 }
 
-function SortableHeader({ label, sortKey, current, dir, onSort, className }: HeaderProps) {
+function SortableHeader({ label, sortKey, current, dir, onSort }: HeaderProps) {
   const active = current === sortKey;
   return (
     <th
-      className={`px-4 py-3 font-medium cursor-pointer select-none whitespace-nowrap group ${className ?? ""}`}
+      className="px-4 py-3 font-medium cursor-pointer select-none whitespace-nowrap group"
       onClick={() => onSort(sortKey)}
     >
       <span className="inline-flex items-center gap-1">
@@ -126,6 +143,7 @@ export function TournamentTable({ results }: Props) {
             <th className="px-4 py-3 font-medium">Tournament</th>
             <SortableHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortableHeader label="Placement" sortKey="placement" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortableHeader label="Format" sortKey="format" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortableHeader label="Deck" sortKey="deck" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortableHeader label="Zone" sortKey="zone" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortableHeader label="Copies" sortKey="copies" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -155,6 +173,7 @@ export function TournamentTable({ results }: Props) {
                 })}
               </td>
               <td className="px-4 py-3">{placementBadge(row.placement)}</td>
+              <td className="px-4 py-3">{formatBadge(row.format)}</td>
               <td className="px-4 py-3">
                 <a
                   href={row.deck_url}

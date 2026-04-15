@@ -18,6 +18,7 @@ export interface DeckAppearance {
   deck_url: string;
   card_zone: string;
   card_quantity: number;
+  format: string | null;
 }
 
 export interface SearchResult {

@@ -24,6 +24,7 @@ class DeckAppearance(BaseModel):
     deck_url: str
     card_zone: str
     card_quantity: int
+    format: Optional[str] = None
 
 
 class SearchResult(BaseModel):
@@ -54,6 +55,7 @@ async def search_card(
             Tournament.name.label("tournament_name"),
             Tournament.date.label("tournament_date"),
             Tournament.slug.label("tournament_slug"),
+            Tournament.format.label("tournament_format"),
         )
         .join(Deck, DeckCard.deck_id == Deck.id)
         .join(Placement, Placement.deck_id == Deck.id)
@@ -79,6 +81,7 @@ async def search_card(
             deck_url=r.deck_url,
             card_zone=r.zone,
             card_quantity=r.quantity,
+            format=r.tournament_format,
         )
         for r in rows
     ]
