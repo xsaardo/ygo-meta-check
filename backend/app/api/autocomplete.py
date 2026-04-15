@@ -92,8 +92,14 @@ async def autocomplete(
     q: str = Query(..., min_length=2, description="Partial card name"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Check if the local cards table has been populated
-    count = (await db.execute(select(func.count()).select_from(Card))).scalar_one()
+    # Check if the local cards table exists and has been populated
+    try:
+        count = (await db.execute(select(func.count()).select_from(Card))).scalar_one()
+    except Exception:
+        # Table doesn't exist yet (migration pending) — fall back to live API
+        await db.rollback()
+        return await _remote_autocomplete(q)
+
     if count > 0:
         return await _local_autocomplete(q, db)
     # Fall back to live API proxy until the card sync job has run
