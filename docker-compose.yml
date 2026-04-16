@@ -20,6 +20,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://ygo:${POSTGRES_PASSWORD:-ygo_secret}@db:5432/ygo_meta
+      CARD_IMAGES_DIR: /app/card_images
     ports:
       - "8000:8000"
     depends_on:
@@ -27,10 +28,13 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - card_images:/app/card_images
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
@@ -46,3 +50,4 @@ services:
 
 volumes:
   postgres_data:
+  card_images:

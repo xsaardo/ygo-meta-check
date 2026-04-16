@@ -5,32 +5,62 @@ import { useState } from "react";
 import { CardSearch } from "./components/CardSearch";
 import { MetaBadge } from "./components/MetaBadge";
 import { TournamentTable } from "./components/TournamentTable";
-import { CardSuggestion, SearchResult, searchCard } from "./lib/api";
+import { CardPrices, CardSuggestion, SearchResult, getCardPrices, searchCard } from "./lib/api";
 
 const MONTH_OPTIONS = [1, 2, 3, 6] as const;
-const ZONE_OPTIONS = [
-  { value: "", label: "All Zones" },
-  { value: "main", label: "Main Deck" },
-  { value: "extra", label: "Extra Deck" },
+
+// Extra deck card types — all others belong to the main deck
+const EXTRA_DECK_TYPES = new Set([
+  "Fusion Monster",
+  "Synchro Monster",
+  "XYZ Monster",
+  "Link Monster",
+  "Pendulum Effect Fusion Monster",
+  "Synchro Pendulum Effect Monster",
+  "XYZ Pendulum Effect Monster",
+  "Pendulum Flip Effect Monster",
+]);
+
+function detectZone(type: string): "main" | "extra" {
+  return EXTRA_DECK_TYPES.has(type) ? "extra" : "main";
+}
+
+const ZONE_OVERRIDES = [
   { value: "side", label: "Side Deck" },
-];
+  { value: "", label: "All Zones" },
+] as const;
 
 export default function HomePage() {
   const [selectedCard, setSelectedCard] = useState<CardSuggestion | null>(null);
   const [months, setMonths] = useState(3);
-  const [zone, setZone] = useState("");
+  // null = auto-detect from card type; explicit string = user override
+  const [zoneOverride, setZoneOverride] = useState<string | null>("");
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [prices, setPrices] = useState<CardPrices | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function effectiveZone(card: CardSuggestion | null, override: string | null): string | undefined {
+    if (override !== null) return override || undefined;
+    if (!card) return undefined;
+    return detectZone(card.type);
+  }
+
   async function handleCardSelect(card: CardSuggestion) {
     setSelectedCard(card);
+    setZoneOverride(""); // reset to all zones on new card
     setError(null);
     setIsLoading(true);
+    setPrices(null);
     try {
-      const data = await searchCard(card.name, months, zone || undefined);
+      const zone = effectiveZone(card, "");
+      const [data, priceData] = await Promise.all([
+        searchCard(card.name, months, zone),
+        getCardPrices(card.id),
+      ]);
       if (!data) throw new Error("Search failed");
       setResult(data);
+      setPrices(priceData);
     } catch {
       setError("Failed to fetch results. Is the backend running?");
       setResult(null);
@@ -39,12 +69,13 @@ export default function HomePage() {
     }
   }
 
-  async function refetch(newMonths = months, newZone = zone) {
+  async function refetch(newMonths = months, newOverride = zoneOverride) {
     if (!selectedCard) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await searchCard(selectedCard.name, newMonths, newZone || undefined);
+      const zone = effectiveZone(selectedCard, newOverride);
+      const data = await searchCard(selectedCard.name, newMonths, zone);
       if (!data) throw new Error("Search failed");
       setResult(data);
     } catch {
@@ -53,6 +84,10 @@ export default function HomePage() {
       setIsLoading(false);
     }
   }
+
+  const autoZoneLabel = selectedCard
+    ? detectZone(selectedCard.type) === "extra" ? "Extra Deck" : "Main Deck"
+    : "Auto";
 
   return (
     <main className="min-h-screen px-4 py-12 md:py-20">
@@ -80,7 +115,7 @@ export default function HomePage() {
               key={m}
               onClick={() => {
                 setMonths(m);
-                refetch(m, zone);
+                refetch(m, zoneOverride);
               }}
               className={`px-3 py-1 rounded text-sm font-medium transition ${
                 months === m
@@ -95,15 +130,31 @@ export default function HomePage() {
 
         {/* Zone filter */}
         <div className="flex items-center gap-1 bg-[#1A1A2E] border border-[#2A2A4A] rounded-lg px-2 py-2">
-          {ZONE_OPTIONS.map((z) => (
+          {/* Auto button — shows detected deck type */}
+          <button
+            onClick={() => {
+              setZoneOverride(null);
+              refetch(months, null);
+            }}
+            className={`px-3 py-1 rounded text-sm font-medium transition ${
+              zoneOverride === null
+                ? "bg-[#2A2A4A] text-white"
+                : "text-[#8888AA] hover:text-white"
+            }`}
+          >
+            {autoZoneLabel}
+          </button>
+
+          {/* Manual overrides */}
+          {ZONE_OVERRIDES.map((z) => (
             <button
               key={z.value}
               onClick={() => {
-                setZone(z.value);
+                setZoneOverride(z.value);
                 refetch(months, z.value);
               }}
               className={`px-3 py-1 rounded text-sm font-medium transition ${
-                zone === z.value
+                zoneOverride === z.value
                   ? "bg-[#2A2A4A] text-white"
                   : "text-[#8888AA] hover:text-white"
               }`}
@@ -137,6 +188,22 @@ export default function HomePage() {
               <h2 className="text-xl font-bold text-white">{result.card_name}</h2>
               <div className="text-[#6B6B8A] text-sm">{selectedCard.type}</div>
               <MetaBadge relevant={result.meta_relevant} count={result.total_appearances} />
+              {prices && (prices.tcgplayer || prices.cardmarket) && (
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {prices.tcgplayer && (
+                    <span className="text-xs text-[#8888AA]">
+                      TCGPlayer{" "}
+                      <span className="text-white font-medium">${prices.tcgplayer}</span>
+                    </span>
+                  )}
+                  {prices.cardmarket && (
+                    <span className="text-xs text-[#8888AA]">
+                      Cardmarket{" "}
+                      <span className="text-white font-medium">€{prices.cardmarket}</span>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -148,7 +215,7 @@ export default function HomePage() {
               <div className="text-5xl mb-4">🃏</div>
               <p className="text-lg">No confirmed tournament decklists found for this card.</p>
               <p className="text-sm mt-2 max-w-md mx-auto">
-                This card may be played in tournaments where decklists weren't submitted to
+                This card may be played in tournaments where decklists weren&apos;t submitted to
                 YGOPRODeck, or it may genuinely not be in the current meta.
               </p>
             </div>

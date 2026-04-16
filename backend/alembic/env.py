@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -14,15 +15,19 @@ if config.config_file_name is not None:
 
 # Import models so Alembic can detect them
 from app.database import Base  # noqa: E402
-from app.models import Tournament, Deck, Placement, DeckCard  # noqa: E402, F401
+from app.models import Tournament, Deck, Placement, DeckCard, Card  # noqa: E402, F401
 
 target_metadata = Base.metadata
 
 
+def _get_url() -> str:
+    """Read DATABASE_URL from the environment, falling back to alembic.ini."""
+    return os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+
+
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=_get_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -39,7 +44,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = config.get_main_option("sqlalchemy.url")
+    configuration["sqlalchemy.url"] = _get_url()
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

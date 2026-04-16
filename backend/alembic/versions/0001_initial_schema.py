@@ -4,6 +4,7 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-04-13
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -48,7 +49,12 @@ def upgrade() -> None:
     op.create_table(
         "placements",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("tournament_id", sa.Integer(), sa.ForeignKey("tournaments.id"), nullable=False),
+        sa.Column(
+            "tournament_id",
+            sa.Integer(),
+            sa.ForeignKey("tournaments.id"),
+            nullable=False,
+        ),
         sa.Column("deck_id", sa.Integer(), sa.ForeignKey("decks.id"), nullable=True),
         sa.Column("placement", sa.String(50), nullable=True),
         sa.Column("player_name", sa.String(255), nullable=True),

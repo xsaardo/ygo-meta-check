@@ -15,6 +15,8 @@ Built for checking a card's competitive value quickly — useful at a card shop 
 
 A weekly scraper pulls tournament results from ygoprodeck.com, fetches each submitted decklist, and stores every card by name, zone (main/extra/side), and quantity. When you search a card, the app queries that local database and shows every tournament appearance in the lookback window.
 
+Card data and images are synced weekly from the YGOPRODECK API and served locally — no per-keystroke calls to their CDN.
+
 ## Running locally
 
 **Prerequisites:** Docker, Docker Compose
@@ -30,13 +32,22 @@ docker compose up --build
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 
-The database starts empty. Trigger an initial scrape:
+The database starts empty. Run the initial data load:
 
 ```bash
+# Sync all ~12k cards and download card images (~200MB)
+curl -X POST http://localhost:8000/api/cards/sync
+
+# Scrape tournament results
 curl -X POST http://localhost:8000/api/scrape/trigger
 ```
 
-This takes a few minutes depending on how many tournaments have submitted decklists. After it completes, search any card name in the UI.
+Both run in the background — check status with:
+
+```bash
+curl http://localhost:8000/api/cards/sync/status
+curl http://localhost:8000/api/scrape/status
+```
 
 ## Environment variables
 
@@ -49,22 +60,68 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `SCRAPER_WORKERS` | `5` | Concurrent deck fetch workers |
 | `SCRAPER_DELAY_SECONDS` | `1.5` | Delay between requests |
 | `ALLOW_MANUAL_SCRAPE` | `true` | Enable the `/api/scrape/trigger` endpoint |
+| `CARD_IMAGES_DIR` | `/app/card_images` | Filesystem path for cached card images |
+| `DATABASE_URL` | _(auto-set by docker-compose)_ | Async PostgreSQL URL |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend URL (set for production) |
 
-## Scraper schedule
+## Deploying to Railway
 
-The scraper runs automatically every Sunday at 03:00 UTC. It only fetches tournaments and decks not already in the database, so incremental runs are fast.
+Railway runs both services from a single repo using `railway.toml`.
+
+### Prerequisites
+
+- [Railway CLI](https://docs.railway.app/develop/cli): `npm install -g @railway/cli`
+- A Railway account and project
+
+### Steps
+
+1. **Create the project and add a PostgreSQL plugin** in the Railway dashboard.
+
+2. **Link and deploy:**
+
+   ```bash
+   railway login
+   railway link
+   railway up
+   ```
+
+3. **Set environment variables** in the Railway dashboard for each service:
+
+   **Backend:**
+   ```
+   DATABASE_URL=<Railway PostgreSQL connection string (asyncpg)>
+   ALLOW_MANUAL_SCRAPE=true
+   CARD_IMAGES_DIR=/app/card_images
+   ```
+
+   **Frontend:**
+   ```
+   NEXT_PUBLIC_API_URL=https://<your-backend-service>.railway.app
+   ```
+
+4. **Run migrations** (Railway will run them automatically via the `startCommand` in `railway.toml`).
+
+5. **Seed data** — after the first deploy, trigger the initial card sync and scrape:
+
+   ```bash
+   curl -X POST https://<your-backend>.railway.app/api/cards/sync
+   curl -X POST https://<your-backend>.railway.app/api/scrape/trigger
+   ```
+
+> **Note:** Card images (~200MB) are written to an ephemeral volume on Railway. They persist across deploys within the same volume but will be re-downloaded after a volume reset. For long-term production use, configure an S3-compatible object store and update `_image_url()` in `autocomplete.py` to return CDN URLs.
 
 ## API
 
 | Endpoint | Description |
 |---|---|
 | `GET /api/search?card=<name>&months=3&zone=<main\|extra\|side>` | Search card tournament appearances |
-| `GET /api/autocomplete?q=<query>` | Card name suggestions |
-| `POST /api/scrape/trigger` | Trigger a manual scrape |
-| `GET /api/scrape/status` | Check if a scrape is running |
+| `GET /api/autocomplete?q=<query>` | Card name suggestions (local DB with pg_trgm) |
+| `GET /api/prices/<card_id>` | TCGPlayer + Cardmarket prices (1h cache) |
+| `POST /api/scrape/trigger` | Trigger a manual tournament scrape |
+| `GET /api/scrape/status` | Check if a tournament scrape is running |
+| `POST /api/cards/sync` | Trigger a manual card data + image sync |
+| `GET /api/cards/sync/status` | Check if a card sync is running |
 
-## Known limitations / roadmap
+## Scraper schedule
 
-- Card autocomplete currently proxies live to the YGOPRODECK API — local card storage is planned ([#1](https://github.com/xsaardo/ygo-meta-check/issues/1))
-- Card images are loaded from the YGOPRODECK CDN — will be self-hosted alongside #1
-- Price tracking is a planned future feature
+Both jobs run automatically every Sunday at 03:00 UTC (card sync at 03:30 UTC). Incremental runs only process new tournaments and decks.

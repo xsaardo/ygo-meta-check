@@ -1,4 +1,5 @@
 """Card search and meta relevance API."""
+
 from datetime import date, timedelta
 from typing import Optional
 
@@ -7,7 +8,6 @@ from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
 from app.models import DeckCard, Deck, Placement, Tournament
 
@@ -24,6 +24,7 @@ class DeckAppearance(BaseModel):
     deck_url: str
     card_zone: str
     card_quantity: int
+    format: Optional[str] = None
 
 
 class SearchResult(BaseModel):
@@ -54,6 +55,7 @@ async def search_card(
             Tournament.name.label("tournament_name"),
             Tournament.date.label("tournament_date"),
             Tournament.slug.label("tournament_slug"),
+            Tournament.format.label("tournament_format"),
         )
         .join(Deck, DeckCard.deck_id == Deck.id)
         .join(Placement, Placement.deck_id == Deck.id)
@@ -79,6 +81,7 @@ async def search_card(
             deck_url=r.deck_url,
             card_zone=r.zone,
             card_quantity=r.quantity,
+            format=r.tournament_format,
         )
         for r in rows
     ]
@@ -101,9 +104,13 @@ class StatsResult(BaseModel):
 
 @router.get("/stats", response_model=StatsResult)
 async def get_stats(db: AsyncSession = Depends(get_db)):
-    t_count = (await db.execute(select(func.count()).select_from(Tournament))).scalar_one()
+    t_count = (
+        await db.execute(select(func.count()).select_from(Tournament))
+    ).scalar_one()
     d_count = (await db.execute(select(func.count()).select_from(Deck))).scalar_one()
-    c_count = (await db.execute(select(func.count()).select_from(DeckCard))).scalar_one()
+    c_count = (
+        await db.execute(select(func.count()).select_from(DeckCard))
+    ).scalar_one()
 
     date_result = await db.execute(
         select(func.min(Tournament.date), func.max(Tournament.date))
