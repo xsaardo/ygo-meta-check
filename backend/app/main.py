@@ -101,7 +101,9 @@ async def startup():
     async def _maybe_sync_cards() -> None:
         try:
             async with AsyncSessionLocal() as session:
-                count = (await session.execute(select(func.count()).select_from(Card))).scalar_one()
+                count = (
+                    await session.execute(select(func.count()).select_from(Card))
+                ).scalar_one()
             if count == 0:
                 logger.info("Cards table is empty — starting initial card sync…")
                 await sync_cards()
