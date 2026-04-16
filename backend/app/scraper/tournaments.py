@@ -1,4 +1,5 @@
 """Scrape the ygoprodeck.com/tournaments/ listing page."""
+
 import logging
 import re
 from dataclasses import dataclass
@@ -32,7 +33,7 @@ class TournamentRow:
 class PlacementRow:
     placement: str
     player_name: Optional[str]
-    deck_slug: Optional[str]   # e.g. "exosister-694073"
+    deck_slug: Optional[str]  # e.g. "exosister-694073"
     deck_id: Optional[int]
     archetype: Optional[str]
 
@@ -57,7 +58,9 @@ def parse_tournament_listing(html: str, cutoff_date: date) -> list[TournamentRow
     rows = []
 
     # DataTables renders all rows in the HTML; each row is a <tr> inside the main table
-    table = soup.find("table", id=lambda x: x and "tournament" in x.lower()) or soup.find("table")
+    table = soup.find(
+        "table", id=lambda x: x and "tournament" in x.lower()
+    ) or soup.find("table")
     if not table:
         logger.error("Could not find tournament table in listing page")
         return rows
@@ -113,7 +116,7 @@ def parse_tournament_listing(html: str, cutoff_date: date) -> list[TournamentRow
                 date=parsed_date,
                 country=country,
                 player_count=player_count,
-                tier=None,   # Not reliably in the listing; parsed from detail page
+                tier=None,  # Not reliably in the listing; parsed from detail page
                 format=None,
             )
         )
@@ -174,7 +177,9 @@ def parse_tournament_detail(html: str, tournament_slug: str) -> list[PlacementRo
         )
 
     logger.info(
-        "Tournament %s: found %d placements with decklists", tournament_slug, len(placements)
+        "Tournament %s: found %d placements with decklists",
+        tournament_slug,
+        len(placements),
     )
     return placements
 
@@ -187,7 +192,11 @@ async def scrape_tournament_listing(client: httpx.AsyncClient) -> list[Tournamen
     try:
         resp = await client.get(
             TOURNAMENTS_API_URL,
-            headers={**HEADERS, "Accept": "application/json", "Referer": f"{BASE_URL}/tournaments/"},
+            headers={
+                **HEADERS,
+                "Accept": "application/json",
+                "Referer": f"{BASE_URL}/tournaments/",
+            },
             timeout=30,
         )
         resp.raise_for_status()

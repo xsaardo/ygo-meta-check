@@ -1,4 +1,5 @@
 """Manual scrape trigger endpoint (dev/admin use)."""
+
 import asyncio
 import logging
 

@@ -1,4 +1,5 @@
 """Bulk card sync: fetches all ~12k cards from YGOPRODECK and stores them locally."""
+
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -78,8 +79,7 @@ async def sync_cards() -> dict:
 
     # Map card_id → image_path
     image_map: dict[int, str | None] = {
-        card_id: path
-        for (card_id, _), path in zip(card_image_urls, image_results)
+        card_id: path for (card_id, _), path in zip(card_image_urls, image_results)
     }
 
     # Upsert all cards

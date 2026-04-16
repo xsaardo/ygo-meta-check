@@ -15,7 +15,9 @@ class Card(Base):
     type: Mapped[str] = mapped_column(String(100))
     archetype: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     image_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    synced_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Tournament(Base):
@@ -30,7 +32,9 @@ class Tournament(Base):
     format: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     player_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    scraped_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     placements: Mapped[list["Placement"]] = relationship(back_populates="tournament")
 
@@ -43,10 +47,14 @@ class Deck(Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     archetype: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     deck_url: Mapped[str] = mapped_column(Text)
-    scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    scraped_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     placements: Mapped[list["Placement"]] = relationship(back_populates="deck")
-    cards: Mapped[list["DeckCard"]] = relationship(back_populates="deck", cascade="all, delete-orphan")
+    cards: Mapped[list["DeckCard"]] = relationship(
+        back_populates="deck", cascade="all, delete-orphan"
+    )
 
 
 class Placement(Base):
@@ -54,7 +62,9 @@ class Placement(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id"), index=True)
-    deck_id: Mapped[Optional[int]] = mapped_column(ForeignKey("decks.id"), nullable=True, index=True)
+    deck_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decks.id"), nullable=True, index=True
+    )
     placement: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     player_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 

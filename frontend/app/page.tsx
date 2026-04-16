@@ -215,7 +215,7 @@ export default function HomePage() {
               <div className="text-5xl mb-4">🃏</div>
               <p className="text-lg">No confirmed tournament decklists found for this card.</p>
               <p className="text-sm mt-2 max-w-md mx-auto">
-                This card may be played in tournaments where decklists weren't submitted to
+                This card may be played in tournaments where decklists weren&apos;t submitted to
                 YGOPRODeck, or it may genuinely not be in the current meta.
               </p>
             </div>

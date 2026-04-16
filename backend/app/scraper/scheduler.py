@@ -1,4 +1,5 @@
 """APScheduler weekly cron jobs for scraping and card sync."""
+
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -29,4 +30,6 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
     scheduler.start()
-    logger.info("Scheduler started — weekly scrape Sun 03:00 UTC, card sync Sun 03:30 UTC")
+    logger.info(
+        "Scheduler started — weekly scrape Sun 03:00 UTC, card sync Sun 03:30 UTC"
+    )

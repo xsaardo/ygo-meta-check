@@ -4,6 +4,7 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-04-14
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -32,9 +33,7 @@ def upgrade() -> None:
     op.create_index("ix_cards_name", "cards", ["name"])
 
     # GIN trigram index for fast similarity search
-    op.execute(
-        "CREATE INDEX ix_cards_name_trgm ON cards USING GIN (name gin_trgm_ops)"
-    )
+    op.execute("CREATE INDEX ix_cards_name_trgm ON cards USING GIN (name gin_trgm_ops)")
 
 
 def downgrade() -> None:

@@ -1,4 +1,5 @@
 """Card search and meta relevance API."""
+
 from datetime import date, timedelta
 from typing import Optional
 
@@ -103,9 +104,13 @@ class StatsResult(BaseModel):
 
 @router.get("/stats", response_model=StatsResult)
 async def get_stats(db: AsyncSession = Depends(get_db)):
-    t_count = (await db.execute(select(func.count()).select_from(Tournament))).scalar_one()
+    t_count = (
+        await db.execute(select(func.count()).select_from(Tournament))
+    ).scalar_one()
     d_count = (await db.execute(select(func.count()).select_from(Deck))).scalar_one()
-    c_count = (await db.execute(select(func.count()).select_from(DeckCard))).scalar_one()
+    c_count = (
+        await db.execute(select(func.count()).select_from(DeckCard))
+    ).scalar_one()
 
     date_result = await db.execute(
         select(func.min(Tournament.date), func.max(Tournament.date))

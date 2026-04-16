@@ -1,4 +1,5 @@
 """Scrape individual deck pages from ygoprodeck.com/deck/<slug>."""
+
 import logging
 import re
 from dataclasses import dataclass, field
@@ -17,7 +18,7 @@ class CardEntry:
     card_id: int
     card_name: str
     card_type: Optional[str]
-    zone: str       # "main", "extra", "side"
+    zone: str  # "main", "extra", "side"
     quantity: int
 
 

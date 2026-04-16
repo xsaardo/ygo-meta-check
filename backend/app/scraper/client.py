@@ -1,4 +1,5 @@
 """Shared httpx client with rate limiting and retry logic."""
+
 import asyncio
 import logging
 from typing import Optional
@@ -21,22 +22,28 @@ HEADERS = {
 }
 
 
-async def fetch_html(client: httpx.AsyncClient, url: str, retries: int = 3) -> Optional[str]:
+async def fetch_html(
+    client: httpx.AsyncClient, url: str, retries: int = 3
+) -> Optional[str]:
     """Fetch a URL with retries and exponential backoff."""
     for attempt in range(retries):
         try:
             await asyncio.sleep(settings.scraper_delay_seconds)
-            response = await client.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+            response = await client.get(
+                url, headers=HEADERS, timeout=30, follow_redirects=True
+            )
             if response.status_code == 200:
                 return response.text
             if response.status_code == 404:
                 logger.warning("404 for %s", url)
                 return None
-            logger.warning("HTTP %s for %s (attempt %d)", response.status_code, url, attempt + 1)
+            logger.warning(
+                "HTTP %s for %s (attempt %d)", response.status_code, url, attempt + 1
+            )
         except (httpx.RequestError, httpx.TimeoutException) as e:
             logger.warning("Request error for %s: %s (attempt %d)", url, e, attempt + 1)
         if attempt < retries - 1:
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2**attempt)
     logger.error("Failed to fetch %s after %d attempts", url, retries)
     return None
 

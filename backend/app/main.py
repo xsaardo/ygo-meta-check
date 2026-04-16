@@ -78,7 +78,9 @@ async def startup():
     # Ensure the card images directory exists and mount it as static files
     images_dir = Path(settings.card_images_dir)
     images_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/static/cards", StaticFiles(directory=str(images_dir)), name="card_images")
+    app.mount(
+        "/static/cards", StaticFiles(directory=str(images_dir)), name="card_images"
+    )
 
     init_scheduler()
     logger.info("YGO Meta API started")
@@ -87,6 +89,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     from app.scraper.scheduler import scheduler
+
     scheduler.shutdown()
 
 

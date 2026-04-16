@@ -1,4 +1,5 @@
 """Card autocomplete backed by the local cards table (with pg_trgm fallback to YGOPRODECK)."""
+
 from pathlib import Path
 from typing import Optional
 
@@ -64,7 +65,9 @@ async def _remote_autocomplete(q: str) -> list[CardSuggestion]:
     """Fallback: proxy to YGOPRODECK when local card table is empty."""
     async with httpx.AsyncClient(timeout=5) as client:
         try:
-            resp = await client.get(CARD_API, params={"fname": q, "num": 10, "offset": 0})
+            resp = await client.get(
+                CARD_API, params={"fname": q, "num": 10, "offset": 0}
+            )
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPError, KeyError, ValueError):

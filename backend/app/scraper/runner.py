@@ -1,4 +1,5 @@
 """Orchestrates the full scrape: tournaments → placements → decks → cards."""
+
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -86,10 +87,15 @@ async def _process_tournament(client, tournament_row) -> None:
 
             # Check if we already have placements for this tournament
             existing = await session.execute(
-                select(Placement).where(Placement.tournament_id == tournament.id).limit(1)
+                select(Placement)
+                .where(Placement.tournament_id == tournament.id)
+                .limit(1)
             )
             if existing.scalar_one_or_none():
-                logger.debug("Tournament %s already has placements, skipping", tournament_row.slug)
+                logger.debug(
+                    "Tournament %s already has placements, skipping",
+                    tournament_row.slug,
+                )
                 return
 
             # Scrape placement rows
@@ -166,21 +172,33 @@ async def rescrape_deck_cards() -> dict:
                         delete(DeckCard).where(DeckCard.deck_id == deck_id)
                     )
                     for card in deck_data.cards:
-                        session.add(DeckCard(
-                            deck_id=deck_id,
-                            card_id=card.card_id,
-                            card_name=card.card_name,
-                            card_type=card.card_type,
-                            zone=card.zone,
-                            quantity=card.quantity,
-                        ))
+                        session.add(
+                            DeckCard(
+                                deck_id=deck_id,
+                                card_id=card.card_id,
+                                card_name=card.card_name,
+                                card_type=card.card_type,
+                                zone=card.zone,
+                                quantity=card.quantity,
+                            )
+                        )
             success += 1
 
     await asyncio.gather(*[_rescrape_one(d.id, d.slug) for d in decks])
 
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-    logger.info("Deck cards rescrape complete: %d ok, %d failed in %.1fs", success, failed, elapsed)
-    return {"decks_total": len(decks), "success": success, "failed": failed, "elapsed_seconds": round(elapsed, 1)}
+    logger.info(
+        "Deck cards rescrape complete: %d ok, %d failed in %.1fs",
+        success,
+        failed,
+        elapsed,
+    )
+    return {
+        "decks_total": len(decks),
+        "success": success,
+        "failed": failed,
+        "elapsed_seconds": round(elapsed, 1),
+    }
 
 
 async def run_scrape() -> dict:
@@ -191,7 +209,11 @@ async def run_scrape() -> dict:
     async with make_client() as client:
         # Step 1: get tournament listing
         tournament_rows = await scrape_tournament_listing(client)
-        logger.info("Found %d tournaments in the last %d months", len(tournament_rows), settings.scraper_months_lookback)
+        logger.info(
+            "Found %d tournaments in the last %d months",
+            len(tournament_rows),
+            settings.scraper_months_lookback,
+        )
 
         # Step 2: process tournaments concurrently
         sem = asyncio.Semaphore(settings.scraper_workers)
