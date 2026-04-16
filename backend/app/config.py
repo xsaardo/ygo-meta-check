@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     scraper_months_lookback: int = 3
     # Card image storage — absolute path on the host / container filesystem
     card_images_dir: str = "/app/card_images"
+    # Enable OpenAPI /docs and /redoc — disabled by default, enable only in dev/staging
+    openapi_enabled: bool = False
 
     class Config:
         env_file = ".env"
