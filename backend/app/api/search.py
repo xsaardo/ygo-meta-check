@@ -1,7 +1,7 @@
 """Card search and meta relevance API."""
 
 from datetime import date, timedelta
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -36,9 +36,13 @@ class SearchResult(BaseModel):
 
 @router.get("/search", response_model=SearchResult)
 async def search_card(
-    card: str = Query(..., min_length=2, description="Card name to search for"),
+    card: str = Query(
+        ..., min_length=2, max_length=255, description="Card name to search for"
+    ),
     months: int = Query(3, ge=1, le=12, description="Lookback window in months"),
-    zone: Optional[str] = Query(None, description="Filter by zone: main, extra, side"),
+    zone: Optional[Literal["main", "extra", "side"]] = Query(
+        None, description="Filter by zone: main, extra, side"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     cutoff = date.today() - timedelta(days=months * 30)
