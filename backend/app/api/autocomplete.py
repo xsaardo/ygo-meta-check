@@ -95,7 +95,7 @@ async def _remote_autocomplete(q: str) -> list[CardSuggestion]:
 
 @router.get("/autocomplete", response_model=list[CardSuggestion])
 async def autocomplete(
-    q: str = Query(..., min_length=2, description="Partial card name"),
+    q: str = Query(..., min_length=2, max_length=255, description="Partial card name"),
     db: AsyncSession = Depends(get_db),
 ):
     # Check if the local cards table exists and has been populated
