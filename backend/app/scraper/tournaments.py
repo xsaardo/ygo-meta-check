@@ -9,7 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.config import settings
-from app.scraper.client import BASE_URL, fetch_html
+from app.scraper.client import BASE_URL, HEADERS, fetch_html
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,8 @@ def parse_tournament_detail(html: str, tournament_slug: str) -> list[PlacementRo
         # Fall back to non-anchor rows
         rows = soup.find_all(attrs={"class": "tournament_table_row"})
 
+    last_placement: Optional[str] = None
+
     for row in rows:
         # Deck URL
         deck_url = row.get("data-deckurl") or row.get("href")
@@ -144,9 +146,12 @@ def parse_tournament_detail(html: str, tournament_slug: str) -> list[PlacementRo
         if not deck_id:
             continue
 
-        # Placement
+        # Placement — only the first row of each group has a <b> label;
+        # subsequent rows in the same group have an empty cell, so carry forward.
         bold = row.find("b")
-        placement = bold.get_text(strip=True) if bold else "Unknown"
+        if bold:
+            last_placement = bold.get_text(strip=True)
+        placement = last_placement or "Unknown"
 
         # Player name
         player_span = row.find("span", class_="player-name")
@@ -182,7 +187,7 @@ async def scrape_tournament_listing(client: httpx.AsyncClient) -> list[Tournamen
     try:
         resp = await client.get(
             TOURNAMENTS_API_URL,
-            headers={"Accept": "application/json", "Referer": f"{BASE_URL}/tournaments/"},
+            headers={**HEADERS, "Accept": "application/json", "Referer": f"{BASE_URL}/tournaments/"},
             timeout=30,
         )
         resp.raise_for_status()
