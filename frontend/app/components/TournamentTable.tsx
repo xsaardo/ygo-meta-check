@@ -175,15 +175,19 @@ export function TournamentTable({ results }: Props) {
               <td className="px-4 py-3">{placementBadge(row.placement)}</td>
               <td className="px-4 py-3">{formatBadge(row.format)}</td>
               <td className="px-4 py-3">
-                <a
-                  href={row.deck_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-white hover:text-[#C9A84C] transition flex items-center gap-1"
-                >
-                  {row.deck_archetype ?? "Unknown"}
-                  <span className="text-[#6B6B8A] text-xs">↗</span>
-                </a>
+                {row.deck_url?.startsWith("https://ygoprodeck.com/") ? (
+                  <a
+                    href={row.deck_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white hover:text-[#C9A84C] transition flex items-center gap-1"
+                  >
+                    {row.deck_archetype ?? "Unknown"}
+                    <span className="text-[#6B6B8A] text-xs">↗</span>
+                  </a>
+                ) : (
+                  <span className="text-white">{row.deck_archetype ?? "Unknown"}</span>
+                )}
               </td>
               <td className="px-4 py-3">{zoneBadge(row.card_zone)}</td>
               <td className="px-4 py-3 text-center">

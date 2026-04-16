@@ -75,12 +75,15 @@ async def _remote_autocomplete(q: str) -> list[CardSuggestion]:
         images = card.get("card_images", [])
         if not images:
             continue
+        image_url = images[0].get("image_url_small", "")
+        if not image_url.startswith("https://images.ygoprodeck.com/"):
+            continue
         suggestions.append(
             CardSuggestion(
                 id=card["id"],
                 name=card["name"],
                 type=card.get("type", ""),
-                image_url_small=images[0]["image_url_small"],
+                image_url_small=image_url,
                 archetype=card.get("archetype"),
             )
         )
