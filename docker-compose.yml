@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ygo_meta
       POSTGRES_USER: ygo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ygo_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -19,7 +19,7 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://ygo:${POSTGRES_PASSWORD:-ygo_secret}@db:5432/ygo_meta
+      DATABASE_URL: postgresql+asyncpg://ygo:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/ygo_meta
       CARD_IMAGES_DIR: /app/card_images
     ports:
       - "8000:8000"
@@ -38,6 +38,7 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      BACKEND_INTERNAL_URL: http://backend:8000
     ports:
       - "3000:3000"
     depends_on:
