@@ -33,9 +33,9 @@ app.add_middleware(
         "https://*.railway.app",
         "https://*.vercel.app",
     ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 app.include_router(search_router, prefix="/api", tags=["search"])
