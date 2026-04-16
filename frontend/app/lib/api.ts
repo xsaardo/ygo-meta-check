@@ -33,14 +33,6 @@ export interface CardPrices {
   cardmarket: string | null;
 }
 
-export interface Stats {
-  tournament_count: number;
-  deck_count: number;
-  card_entry_count: number;
-  oldest_tournament: string | null;
-  newest_tournament: string | null;
-}
-
 export async function autocomplete(q: string): Promise<CardSuggestion[]> {
   if (q.length < 2) return [];
   const res = await fetch(`${API_URL}/api/autocomplete?q=${encodeURIComponent(q)}`);
@@ -62,12 +54,6 @@ export async function searchCard(
 
 export async function getCardPrices(cardId: number): Promise<CardPrices | null> {
   const res = await fetch(`${API_URL}/api/prices/${cardId}`);
-  if (!res.ok) return null;
-  return res.json();
-}
-
-export async function getStats(): Promise<Stats | null> {
-  const res = await fetch(`${API_URL}/api/stats`, { next: { revalidate: 300 } });
   if (!res.ok) return null;
   return res.json();
 }

@@ -92,35 +92,3 @@ async def search_card(
         total_appearances=len(appearances),
         results=appearances,
     )
-
-
-class StatsResult(BaseModel):
-    tournament_count: int
-    deck_count: int
-    card_entry_count: int
-    oldest_tournament: Optional[date]
-    newest_tournament: Optional[date]
-
-
-@router.get("/stats", response_model=StatsResult)
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    t_count = (
-        await db.execute(select(func.count()).select_from(Tournament))
-    ).scalar_one()
-    d_count = (await db.execute(select(func.count()).select_from(Deck))).scalar_one()
-    c_count = (
-        await db.execute(select(func.count()).select_from(DeckCard))
-    ).scalar_one()
-
-    date_result = await db.execute(
-        select(func.min(Tournament.date), func.max(Tournament.date))
-    )
-    oldest, newest = date_result.one()
-
-    return StatsResult(
-        tournament_count=t_count,
-        deck_count=d_count,
-        card_entry_count=c_count,
-        oldest_tournament=oldest,
-        newest_tournament=newest,
-    )
