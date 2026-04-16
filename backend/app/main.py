@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -64,8 +65,11 @@ def _run_migrations() -> None:
     if result.stdout:
         logger.info(result.stdout.strip())
     if result.returncode != 0:
-        logger.error("Migration failed:\n%s", result.stderr)
-        raise RuntimeError(f"Alembic migration failed: {result.stderr}")
+        # Strip any database URLs from stderr before logging — connection errors
+        # often include the full URL with password.
+        safe_stderr = re.sub(r"\w[\w+.-]*://[^\s]+", "[REDACTED_URL]", result.stderr)
+        logger.error("Migration failed:\n%s", safe_stderr)
+        raise RuntimeError(f"Alembic migration failed: {safe_stderr}")
 
 
 @app.on_event("startup")
