@@ -9,11 +9,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from sqlalchemy import func, select
+
 from app.api.autocomplete import router as autocomplete_router
 from app.api.prices import router as prices_router
 from app.api.scrape import router as scrape_router
 from app.api.search import router as search_router
 from app.config import settings
+from app.database import AsyncSessionLocal
+from app.models import Card
+from app.scraper.cards import sync_cards
 from app.scraper.scheduler import init_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -23,17 +28,21 @@ app = FastAPI(
     title="YGO Meta Relevance API",
     description="Search for Yu-Gi-Oh! cards and check their tournament meta relevance.",
     version="1.0.0",
+    docs_url="/docs" if settings.openapi_enabled else None,
+    redoc_url="/redoc" if settings.openapi_enabled else None,
+    openapi_url="/openapi.json" if settings.openapi_enabled else None,
 )
+
+_default_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+]
+_extra_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "https://*.railway.app",
-        "https://*.vercel.app",
-    ],
+    allow_origins=_default_origins + _extra_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
@@ -87,6 +96,22 @@ async def startup():
     )
 
     init_scheduler()
+
+    # Kick off an initial card sync in the background if the table is empty
+    async def _maybe_sync_cards() -> None:
+        try:
+            async with AsyncSessionLocal() as session:
+                count = (
+                    await session.execute(select(func.count()).select_from(Card))
+                ).scalar_one()
+            if count == 0:
+                logger.info("Cards table is empty — starting initial card sync…")
+                await sync_cards()
+                logger.info("Initial card sync complete.")
+        except Exception:
+            logger.exception("Initial card sync failed")
+
+    asyncio.create_task(_maybe_sync_cards())
     logger.info("YGO Meta API started")
 
 
