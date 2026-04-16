@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -131,6 +131,56 @@ async def _process_tournament(client, tournament_row) -> None:
             tournament.scraped_at = datetime.now(timezone.utc)
 
     logger.info("Saved tournament: %s", tournament_row.name)
+
+
+async def rescrape_deck_cards() -> dict:
+    """Re-scrape cards for all existing decks, replacing stored deck_cards.
+
+    Use this when the zone detection logic has been fixed and existing data
+    needs to be corrected (e.g. side/extra cards stored as 'main').
+    """
+    logger.info("Starting full deck cards rescrape")
+    start = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Deck.id, Deck.slug))
+        decks = result.all()
+
+    logger.info("Re-scraping cards for %d decks", len(decks))
+    sem = asyncio.Semaphore(settings.scraper_workers)
+    success = 0
+    failed = 0
+
+    async def _rescrape_one(deck_id: int, slug: str) -> None:
+        nonlocal success, failed
+        async with sem:
+            async with make_client() as client:
+                deck_data = await scrape_deck(client, slug)
+            if not deck_data:
+                failed += 1
+                return
+            async with AsyncSessionLocal() as session:
+                async with session.begin():
+                    # Delete existing cards and re-insert with corrected zones
+                    await session.execute(
+                        delete(DeckCard).where(DeckCard.deck_id == deck_id)
+                    )
+                    for card in deck_data.cards:
+                        session.add(DeckCard(
+                            deck_id=deck_id,
+                            card_id=card.card_id,
+                            card_name=card.card_name,
+                            card_type=card.card_type,
+                            zone=card.zone,
+                            quantity=card.quantity,
+                        ))
+            success += 1
+
+    await asyncio.gather(*[_rescrape_one(d.id, d.slug) for d in decks])
+
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+    logger.info("Deck cards rescrape complete: %d ok, %d failed in %.1fs", success, failed, elapsed)
+    return {"decks_total": len(decks), "success": success, "failed": failed, "elapsed_seconds": round(elapsed, 1)}
 
 
 async def run_scrape() -> dict:

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
-from app.scraper.runner import run_scrape
+from app.scraper.runner import run_scrape, rescrape_deck_cards
 from app.scraper.cards import sync_cards
 
 router = APIRouter()
@@ -41,6 +41,38 @@ async def trigger_scrape():
 @router.get("/scrape/status")
 async def scrape_status():
     return {"running": _scrape_running}
+
+
+_rescrape_running = False
+
+
+@router.post("/scrape/rescrape-deck-cards")
+async def trigger_rescrape_deck_cards():
+    """Re-scrape all deck cards to fix zone classification (e.g. after scraper bug fix)."""
+    global _rescrape_running
+
+    if not settings.allow_manual_scrape:
+        raise HTTPException(status_code=403, detail="Manual scrape trigger is disabled")
+
+    if _rescrape_running:
+        raise HTTPException(status_code=409, detail="A rescrape is already running")
+
+    async def _run():
+        global _rescrape_running
+        _rescrape_running = True
+        try:
+            result = await rescrape_deck_cards()
+            logger.info("Deck cards rescrape completed: %s", result)
+        finally:
+            _rescrape_running = False
+
+    asyncio.create_task(_run())
+    return {"message": "Deck cards rescrape started in background"}
+
+
+@router.get("/scrape/rescrape-deck-cards/status")
+async def rescrape_deck_cards_status():
+    return {"running": _rescrape_running}
 
 
 @router.post("/cards/sync")
