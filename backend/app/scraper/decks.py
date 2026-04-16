@@ -30,18 +30,51 @@ class DeckData:
     cards: list[CardEntry] = field(default_factory=list)
 
 
-def _detect_zone(element) -> str:
-    """Walk up the DOM to find which zone (main/extra/side) a card element belongs to."""
+# Keywords that uniquely identify extra deck card types across all ygoprodeck subtypes
+# (e.g. "Link Effect Monster", "Synchro Tuner Monster", "Pendulum Effect Fusion Monster")
+_EXTRA_DECK_KEYWORDS = {"fusion", "synchro", "xyz", "link"}
+
+
+def _is_extra_deck_type(card_type: Optional[str]) -> bool:
+    if not card_type:
+        return False
+    lower = card_type.lower()
+    return "monster" in lower and any(kw in lower for kw in _EXTRA_DECK_KEYWORDS)
+
+
+def _detect_zone(element, card_type: Optional[str] = None) -> str:
+    """Walk up the DOM to find which zone (main/extra/side) a card element belongs to.
+
+    ygoprodeck uses id attributes (id="main_deck", id="extra_deck", id="side_deck")
+    to mark deck sections — not CSS classes. We check both id and class on each
+    ancestor. Falls back to card_type keyword matching when the DOM walk is
+    inconclusive (e.g. for extra deck card types like "Link Effect Monster").
+    """
     el = element.parent
     depth = 0
     while el and depth < 15:
-        cls = " ".join(el.get("class", []))
-        if "side" in cls.lower():
-            return "side"
-        if "extra" in cls.lower():
+        # Check id attribute first — ygoprodeck uses id="main_deck" / "extra_deck" / "side_deck"
+        el_id = el.get("id", "").lower()
+        if "extra" in el_id:
             return "extra"
+        if "side" in el_id:
+            return "side"
+        if "main" in el_id:
+            return "main"
+
+        # Also check class names as a fallback
+        cls = " ".join(el.get("class", [])).lower()
+        if "extra" in cls:
+            return "extra"
+        if "side" in cls:
+            return "side"
+
         el = el.parent
         depth += 1
+
+    # DOM walk was inconclusive — fall back to card type
+    if _is_extra_deck_type(card_type):
+        return "extra"
     return "main"
 
 
@@ -83,7 +116,7 @@ def parse_deck_page(html: str, slug: str) -> Optional[DeckData]:
         except ValueError:
             continue
 
-        zone = _detect_zone(el)
+        zone = _detect_zone(el, card_type)
         key = (card_id, zone)
 
         if key in aggregated:
