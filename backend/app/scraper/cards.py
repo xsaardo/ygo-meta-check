@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.config import settings
@@ -64,7 +63,6 @@ async def sync_cards() -> dict:
     now = datetime.now(timezone.utc)
 
     async with httpx.AsyncClient(timeout=10) as img_client:
-        image_tasks = []
         card_image_urls: list[tuple[int, str]] = []
         for card in raw_cards:
             images = card.get("card_images", [])
@@ -97,19 +95,24 @@ async def sync_cards() -> dict:
         for card in raw_cards
     ]
 
+    # PostgreSQL caps prepared-statement parameters at 65535.
+    # Each row uses 6 columns, so keep batches well under that limit.
+    BATCH_SIZE = 1000
     async with AsyncSessionLocal() as session:
-        stmt = insert(Card).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["id"],
-            set_={
-                "name": stmt.excluded.name,
-                "type": stmt.excluded.type,
-                "archetype": stmt.excluded.archetype,
-                "image_path": stmt.excluded.image_path,
-                "synced_at": stmt.excluded.synced_at,
-            },
-        )
-        await session.execute(stmt)
+        for i in range(0, len(rows), BATCH_SIZE):
+            batch = rows[i : i + BATCH_SIZE]
+            stmt = insert(Card).values(batch)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "name": stmt.excluded.name,
+                    "type": stmt.excluded.type,
+                    "archetype": stmt.excluded.archetype,
+                    "image_path": stmt.excluded.image_path,
+                    "synced_at": stmt.excluded.synced_at,
+                },
+            )
+            await session.execute(stmt)
         await session.commit()
 
     downloaded = sum(1 for p in image_results if p)
