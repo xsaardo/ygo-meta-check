@@ -34,7 +34,7 @@ export default function HomePage() {
   const [selectedCard, setSelectedCard] = useState<CardSuggestion | null>(null);
   const [months, setMonths] = useState(3);
   // null = auto-detect from card type; explicit string = user override
-  const [zoneOverride, setZoneOverride] = useState<string | null>(null);
+  const [zoneOverride, setZoneOverride] = useState<string | null>("");
   const [result, setResult] = useState<SearchResult | null>(null);
   const [prices, setPrices] = useState<CardPrices | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,12 +48,12 @@ export default function HomePage() {
 
   async function handleCardSelect(card: CardSuggestion) {
     setSelectedCard(card);
-    setZoneOverride(null); // reset to auto on new card
+    setZoneOverride(""); // reset to all zones on new card
     setError(null);
     setIsLoading(true);
     setPrices(null);
     try {
-      const zone = effectiveZone(card, null);
+      const zone = effectiveZone(card, "");
       const [data, priceData] = await Promise.all([
         searchCard(card.name, months, zone),
         getCardPrices(card.id),
