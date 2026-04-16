@@ -1,6 +1,7 @@
-"""Card price proxy with 1-hour in-memory cache."""
+"""Card price proxy with 1-hour in-memory cache (bounded LRU, max 5000 entries)."""
 
 import time
+from collections import OrderedDict
 from typing import Optional
 
 import httpx
@@ -11,8 +12,35 @@ router = APIRouter()
 
 CARD_API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 CACHE_TTL = 3600  # 1 hour
+CACHE_MAX_SIZE = 5000
 
-_cache: dict[int, tuple[float, "CardPrices"]] = {}
+
+class _BoundedCache:
+    """Thread-safe LRU cache with a fixed max size and TTL-based expiry."""
+
+    def __init__(self, maxsize: int) -> None:
+        self._maxsize = maxsize
+        self._store: OrderedDict[int, tuple[float, "CardPrices"]] = OrderedDict()
+
+    def get(self, key: int) -> "CardPrices | None":
+        if key not in self._store:
+            return None
+        ts, value = self._store[key]
+        if time.monotonic() - ts >= CACHE_TTL:
+            del self._store[key]
+            return None
+        self._store.move_to_end(key)
+        return value
+
+    def set(self, key: int, value: "CardPrices") -> None:
+        if key in self._store:
+            self._store.move_to_end(key)
+        self._store[key] = (time.monotonic(), value)
+        if len(self._store) > self._maxsize:
+            self._store.popitem(last=False)  # evict oldest
+
+
+_cache = _BoundedCache(maxsize=CACHE_MAX_SIZE)
 
 
 class CardPrices(BaseModel):
@@ -22,11 +50,9 @@ class CardPrices(BaseModel):
 
 @router.get("/prices/{card_id}", response_model=CardPrices)
 async def get_prices(card_id: int):
-    now = time.monotonic()
-    if card_id in _cache:
-        ts, prices = _cache[card_id]
-        if now - ts < CACHE_TTL:
-            return prices
+    cached = _cache.get(card_id)
+    if cached is not None:
+        return cached
 
     async with httpx.AsyncClient(timeout=5) as client:
         try:
@@ -46,5 +72,5 @@ async def get_prices(card_id: int):
         cardmarket=raw.get("cardmarket_price") or None,
     )
 
-    _cache[card_id] = (now, prices)
+    _cache.set(card_id, prices)
     return prices
