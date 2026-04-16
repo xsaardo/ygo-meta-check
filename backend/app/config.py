@@ -2,8 +2,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+asyncpg://ygo:ygo_secret@localhost:5432/ygo_meta"
-    allow_manual_scrape: bool = True
+    database_url: str  # required — no default; app refuses to start without DATABASE_URL set
+    allow_manual_scrape: bool = False
     # Scraper settings
     scraper_workers: int = 5
     scraper_delay_seconds: float = 1.5
