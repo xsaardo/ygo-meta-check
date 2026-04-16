@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     card_images_dir: str = "/app/card_images"
     # Enable OpenAPI /docs and /redoc — disabled by default, enable only in dev/staging
     openapi_enabled: bool = False
+    # Comma-separated extra CORS origins (e.g. production Railway/Vercel URLs)
+    allowed_origins: str = ""
 
     class Config:
         env_file = ".env"
