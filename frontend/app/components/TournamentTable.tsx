@@ -120,6 +120,60 @@ function SortableHeader({ label, sortKey, current, dir, onSort }: HeaderProps) {
   );
 }
 
+function MobileCard({ row }: { row: DeckAppearance }) {
+  const deckLink = row.deck_url?.startsWith("https://ygoprodeck.com/");
+  return (
+    <div className="p-4 border-b border-[#1E1E35] last:border-0">
+      {/* Tournament name + date */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <a
+          href={row.tournament_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#C9A84C] hover:underline font-medium text-sm leading-snug"
+        >
+          {row.tournament_name}
+        </a>
+        <span className="text-[#6B6B8A] text-xs whitespace-nowrap shrink-0">
+          {new Date(row.tournament_date).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+
+      {/* Badges row */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        {placementBadge(row.placement)}
+        {formatBadge(row.format)}
+        {zoneBadge(row.card_zone)}
+        <span className="font-mono font-bold text-white text-xs">×{row.card_quantity}</span>
+      </div>
+
+      {/* Deck */}
+      <div className="text-xs text-[#6B6B8A]">
+        Deck:{" "}
+        {deckLink ? (
+          <a
+            href={row.deck_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white hover:text-[#C9A84C] transition"
+          >
+            {row.deck_archetype ?? "Unknown"} <span className="text-[#6B6B8A]">↗</span>
+          </a>
+        ) : (
+          <span className="text-white">{row.deck_archetype ?? "Unknown"}</span>
+        )}
+        {row.player_name && (
+          <span className="ml-2 text-[#6B6B8A]">· {row.player_name}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function TournamentTable({ results }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -136,67 +190,77 @@ export function TournamentTable({ results }: Props) {
   const sorted = sortRows(results, sortKey, sortDir);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#2A2A4A]">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[#2A2A4A] text-[#6B6B8A] text-left">
-            <th className="px-4 py-3 font-medium">Tournament</th>
-            <SortableHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortableHeader label="Placement" sortKey="placement" current={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortableHeader label="Format" sortKey="format" current={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortableHeader label="Deck" sortKey="deck" current={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortableHeader label="Zone" sortKey="zone" current={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortableHeader label="Copies" sortKey="copies" current={sortKey} dir={sortDir} onSort={handleSort} />
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((row, i) => (
-            <tr
-              key={i}
-              className="border-b border-[#1E1E35] hover:bg-[#1A1A2E] transition"
-            >
-              <td className="px-4 py-3">
-                <a
-                  href={row.tournament_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#C9A84C] hover:underline font-medium"
-                >
-                  {row.tournament_name}
-                </a>
-              </td>
-              <td className="px-4 py-3 text-[#8888AA] whitespace-nowrap">
-                {new Date(row.tournament_date).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </td>
-              <td className="px-4 py-3">{placementBadge(row.placement)}</td>
-              <td className="px-4 py-3">{formatBadge(row.format)}</td>
-              <td className="px-4 py-3">
-                {row.deck_url?.startsWith("https://ygoprodeck.com/") ? (
+    <div className="rounded-xl border border-[#2A2A4A]">
+      {/* Mobile card list */}
+      <div className="md:hidden">
+        {sorted.map((row, i) => (
+          <MobileCard key={i} row={row} />
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[#2A2A4A] text-[#6B6B8A] text-left">
+              <th className="px-4 py-3 font-medium">Tournament</th>
+              <SortableHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Placement" sortKey="placement" current={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Format" sortKey="format" current={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Deck" sortKey="deck" current={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Zone" sortKey="zone" current={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Copies" sortKey="copies" current={sortKey} dir={sortDir} onSort={handleSort} />
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((row, i) => (
+              <tr
+                key={i}
+                className="border-b border-[#1E1E35] hover:bg-[#1A1A2E] transition"
+              >
+                <td className="px-4 py-3">
                   <a
-                    href={row.deck_url}
+                    href={row.tournament_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-white hover:text-[#C9A84C] transition flex items-center gap-1"
+                    className="text-[#C9A84C] hover:underline font-medium"
                   >
-                    {row.deck_archetype ?? "Unknown"}
-                    <span className="text-[#6B6B8A] text-xs">↗</span>
+                    {row.tournament_name}
                   </a>
-                ) : (
-                  <span className="text-white">{row.deck_archetype ?? "Unknown"}</span>
-                )}
-              </td>
-              <td className="px-4 py-3">{zoneBadge(row.card_zone)}</td>
-              <td className="px-4 py-3 text-center">
-                <span className="font-mono font-bold text-white">×{row.card_quantity}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </td>
+                <td className="px-4 py-3 text-[#8888AA] whitespace-nowrap">
+                  {new Date(row.tournament_date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </td>
+                <td className="px-4 py-3">{placementBadge(row.placement)}</td>
+                <td className="px-4 py-3">{formatBadge(row.format)}</td>
+                <td className="px-4 py-3">
+                  {row.deck_url?.startsWith("https://ygoprodeck.com/") ? (
+                    <a
+                      href={row.deck_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white hover:text-[#C9A84C] transition flex items-center gap-1"
+                    >
+                      {row.deck_archetype ?? "Unknown"}
+                      <span className="text-[#6B6B8A] text-xs">↗</span>
+                    </a>
+                  ) : (
+                    <span className="text-white">{row.deck_archetype ?? "Unknown"}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">{zoneBadge(row.card_zone)}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className="font-mono font-bold text-white">×{row.card_quantity}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
