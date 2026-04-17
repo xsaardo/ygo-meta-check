@@ -17,8 +17,9 @@ from app.api.scrape import router as scrape_router
 from app.api.search import router as search_router
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models import Card
+from app.models import Card, Tournament
 from app.scraper.cards import sync_cards
+from app.scraper.runner import run_scrape
 from app.scraper.scheduler import init_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -112,6 +113,21 @@ async def startup():
             logger.exception("Initial card sync failed")
 
     asyncio.create_task(_maybe_sync_cards())
+
+    async def _maybe_scrape() -> None:
+        try:
+            async with AsyncSessionLocal() as session:
+                count = (
+                    await session.execute(select(func.count()).select_from(Tournament))
+                ).scalar_one()
+            if count == 0:
+                logger.info("Tournaments table is empty — starting initial scrape…")
+                await run_scrape()
+                logger.info("Initial scrape complete.")
+        except Exception:
+            logger.exception("Initial scrape failed")
+
+    asyncio.create_task(_maybe_scrape())
     logger.info("YGO Meta API started")
 
 
